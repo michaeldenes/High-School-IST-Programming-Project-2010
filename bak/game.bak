@@ -1,0 +1,609 @@
+'Copyright Michael Denes 2010
+'The program starts here
+'Program Version: v21.10.10
+'====================================================================================
+'               <<<<<<<<<<<Defining Global Variables>>>>>>>>>>>
+'====================================================================================
+global shipx         'X position of the ship
+global shipy         'Y position of the ship
+global gameover      'Sets a variable to be used for whether the game is in action or is over
+global shiplives     'Sets a variable to be used to determine how many ships lives are left
+global shipsaved     'Sets a variable to be used to determine how many times the ship has gotten to its objective
+global roadonex      'X Position of all first cars/trucks/bikes                     NO Y COORDINATES, THEY ARE STRICTLY THE SAME EVERYTIME
+global roadtwox      'X Position of all second cars/trucks/bikes                    NO Y COORDINATES, THEY ARE STRICTLY THE SAME EVERYTIME
+global roadthreex    'X Position of all third cars/trucks/bikes                     NO Y COORDINATES, THEY ARE STRICTLY THE SAME EVERYTIME
+global timerone      'The value that the timer uses
+global speed         'The amount of pixels the enemy sprites move by
+global level         'The level you are currently on
+global time          'Seconds since midnight as number
+global timeloop      'The difference between when the game was started and the time it is as you go through the loop
+global timeshow      'The number that shows in the graphics box
+global timegap       'The gap between the time a game was paused or halted by a notification and the timeloop
+global timespaused   'This number, when in the play game loop, will fluctuate between 1 and 2. It is set to 0 so that "time" can be set at the start of a game
+'KNOWN LIMITATION ON TIMER/GAME TIME: If you press the Play Game button before midnight, and play until after midnight, without resetting any values, the timer will show the incorrect time
+
+'====================================================================================
+'                       <<<<<<<<<<< Load BMP's >>>>>>>>>>>
+'====================================================================================
+loadbmp "shipimage", "ship.bmp"                   'The Ship Bitmap Image
+loadbmp "blowup", "blowup.bmp"                    'The Ship Second Bitmap image
+loadbmp "levelimage", "level.bmp"                 'The background/level (HAS HEADER UP TOP LEFT!)
+loadbmp "car1image", "car1.bmp"                   'The first car
+loadbmp "car2image", "car2.bmp"                   'The second car
+loadbmp "car3image", "car3.bmp"                   'The third car
+loadbmp "truck1image", "truck1.bmp"               'The first truck
+loadbmp "truck2image", "truck2.bmp"               'The second truck
+loadbmp "truck3image", "truck3.bmp"               'The third truck
+loadbmp "bike1image", "bike1.bmp"                 'The first bike
+loadbmp "bike2image", "bike2.bmp"                 'The second bike
+loadbmp "bike3image", "bike3.bmp"                 'The third bike
+
+'====================================================================================
+'               <<<<<<<<<<< Main Window Properties >>>>>>>>>>
+'==================================================================================== Sets the properties of the Main window and opens it
+
+'Window Width and Height
+    nomainwin
+    WindowWidth = 800
+    WindowHeight = 650
+
+'Buttons
+    button #main.playgame, "Play Game", playgame, UL, 0, 0, 150, 50
+    button #main.instructions, "Instructions", instructions, UL, 150, 0, 150, 50
+    button #main.restart "Restart", restart, UL, 300, 0, 150, 50
+    button #main.quit, "Quit", quit, UL, 450, 0, 150, 50
+
+'Graphicbox
+    graphicbox #main.infobox, 600, 0, 200, 50
+
+'Open #main
+    open "Star Trek: Save The Ships!" for graphics_nf_nsb as #main 'No Frame [cannot be resized], No Scroll Bars
+
+'Graphics Box Commands
+    #main.infobox "down ; fill black ; font arial 8"
+    #main.infobox "color yellow; backcolor black"
+    #main.infobox "place 5 12"
+    #main.infobox "\Lives Left = "
+    #main.infobox "place 5 23"
+    #main.infobox "\Ships Saved = "
+    #main.infobox "place 5 34"
+    #main.infobox "\Level = "
+    #main.infobox "place 5 45"
+    #main.infobox "\Game Time = "
+
+'Call Variables and Sprites
+    call variables
+    call lanes
+    call addship
+
+'Load Background and Cause Sprites to Appear
+    print #main, "background levelimage;flush"
+    print #main, "drawsprites"                  'Causes everything to appear on screen
+    print #main.playgame, "!setfocus"           'Sets focus to the Play Game Button
+wait
+
+
+
+'====================================================================================
+'                        <<<<<<<<<<< Subroutines >>>>>>>>>>>
+'====================================================================================
+
+
+'========================================
+'<<< Instructions Window Subroutine >>>
+'======================================== This subroutine opens the instructions window
+sub instructions buttonhandle$ 
+    nomainwin
+    WindowHeight = 500
+    WindowWidth = 500
+    button #instructions.quit, "Go to Game", instructionsquit, UL, 0, 0, 100, 50
+    graphicbox #instructions.text, 0, 0, 500, 500
+    open "Instructions" for window_nf as #instructions 'No Frame [cannot be resized]
+    call instructionswords                             'The words that appear in the #instructions.text graphicsbox
+end sub
+
+
+'========================================
+'<<< Instructions Window Quit Subroutine >>>
+'======================================== This subroutine closes the instructions window
+sub instructionsquit buttonhandle$ 
+    close #instructions
+    print #main, "setfocus"                            'Set Focus to the Main window #main
+end sub
+
+
+'========================================
+'<<< Instructions Window Quit Subroutine >>>
+'======================================== This subroutine prints the instructions (words) to the graphics box inside the instructions window
+sub instructionswords
+    #instructions.text "down ; fill black ; font arial 17" 'This line includes the font size for the header
+    #instructions.text "color green; backcolor black"
+
+    'HEADER
+    #instructions.text "place 220 40"
+    #instructions.text "\Instructions"
+
+    'BODY
+    #instructions.text "font arial 12"                  'Font Size for Body
+    #instructions.text "color yellow; backcolor black"  'Colour for Body
+        'Line 1
+    #instructions.text "place 45 75"                    'Indented by 35 pixels
+    #instructions.text "\Star Trek: Save The Ships! is a game whose objective is to save"
+        'Line 2
+    #instructions.text "place 10 100"
+    #instructions.text "\as many Federation Starships as possible. You control a Starship;"
+        'Line 3
+    #instructions.text "place 10 125"
+    #instructions.text "\your aim is to manoeuvre through several lanes of congested space"
+        'Line 4
+    #instructions.text "place 10 150"
+    #instructions.text "\traffic to the other side, to safety. You begin the game as a lowly"
+        'Line 5
+    #instructions.text "place 10 175"
+    #instructions.text "\Starship captain, as you save more and more ships you gain a higher"
+        'Line 6
+    #instructions.text "place 10 200"
+    #instructions.text "\rank as Captain James T. Kirk (Captain of the Federation Starship"
+        'Line 7
+    #instructions.text "place 10 225"
+    #instructions.text "\Enterprise) promotes you. Each promotion puts you in a new area of"
+        'Line 8
+    #instructions.text "place 10 250"
+    #instructions.text "\space, where the traffic moves more quickly."
+
+    'Colour for Rules:
+    #instructions.text "color pink; backcolor black"
+        'Line 9
+    #instructions.text "place 10 280"
+    #instructions.text "\Rules: 1. You have 5 lives/ships"
+        'Line 10
+    #instructions.text "place 10 305"
+    #instructions.text "\            2. Every 5 ships you save you get promoted and gain"           'Spaces Included For Equally Spaced List
+        'Line 11
+    #instructions.text "place 10 330"
+    #instructions.text "\                an extra life/ship"                                        'Spaces Included For Equally Spaced List
+        'Line 12
+    #instructions.text "place 10 355"
+    #instructions.text "\            3. There are 2 islands where no spaceships fly"                'Spaces Included For Equally Spaced List
+        'Line 13
+    #instructions.text "place 10 380"
+    #instructions.text "\            4. You win the game by saving 25 Federation Starships"         'Spaces Included For Equally Spaced List
+
+    'Colour for Movement:
+    #instructions.text "color blue; backcolor black"
+        'Line 14
+    #instructions.text "place 10 410"
+    #instructions.text "\Movement Buttons:   W: Move Forward         S: Move Backward"
+        'Line 15
+    #instructions.text "place 10 435"
+    #instructions.text "\                                     A: Move Left                 D: Move Right"
+        'Line 16
+    #instructions.text "place 10 460"
+    #instructions.text "\                                     P: Pause"
+
+    'Colour for Copyright ;) :
+    #instructions.text "color white; backcolor black"
+    'FOOTER
+    #instructions.text "place 270 465"
+    #instructions.text "\Copyright Michael Denes 2010"
+end sub
+
+
+'========================================
+'     <<< Gameplay Subroutine >>>
+'======================================== When the button "Play Game" is pressed, this subroutine is started
+
+sub playgame buttonhandle$
+    'Information Block - Prints information to the graphics box #main.infobox
+
+    if timespaused = 0 then time = time$("seconds")   'time = how many seconds since midnight. This is used in the Game Time
+    print #main.playgame, "Play Game"
+    print #main, "setfocus"
+    gameover = 0
+
+'Play Game Loop
+        while gameover <> 1
+
+            print #main, "setfocus"
+            print #main.playgame , "Press P to Pause"
+
+            'Gametime
+            if timespaused = 2 then timegap = time$("seconds") - timeloop + timegap
+            timespaused = 1                                              'RESET
+            timeloop = time$("seconds")                                  'RESET
+            timeshow = timeloop - time - timegap                            'Time now minus initial time minus difference for pause
+            call infoboxsub
+
+            'Call subroutines that check rules, move enemies and check for collisions
+            call rulecheck
+            call enemymovement
+            call collision
+
+            'Timer
+            timer timerone, [timer]
+            wait
+            [timer]
+            timer 0
+            scan
+
+            print #main, "when characterInput keypress"
+            print #main, "drawsprites"
+        wend
+
+    print #main, "when characterInput keypress2" 'Stop moving sprites after gameover = 1
+
+end sub
+
+
+'========================================
+'      <<< Restart Subroutine >>>
+'======================================== This subroutine restarts the game by resetting all variables
+sub restart buttonhandle$
+    print #main.playgame , "Play Game"
+    call variables
+    print #main, "spritexy ship "; shipx; " "; shipy
+    call enemymovement                    'Moves Sprites back to position
+
+    #main.infobox "down ; fill black ; font arial 8"
+    #main.infobox "color yellow; backcolor black"
+    #main.infobox "place 5 12"
+    #main.infobox "\Lives Left = "; shiplives
+    #main.infobox "place 5 23"
+    #main.infobox "\Ships Saved = "; shipsaved
+    #main.infobox "place 5 34"
+    #main.infobox "\Level = "; level
+    #main.infobox "place 5 45"
+    #main.infobox "\Game Time = "; timeshow
+
+    print #main, "drawsprites"
+    print #main.playgame, "!setfocus" 'Sets focus to the Play Game Button
+
+    gameover = 0
+end sub
+
+
+'========================================
+'     <<< Variables Subroutine >>>
+'======================================== This subroutine sets all the variables for the game
+sub variables
+    'Positions
+    shipx = 375                                     'x-position of the ship
+    shipy = 550                                     'y-position of the ship
+
+    'Position of enemy sprites!
+    roadonex = 900                                  'x-position of cars one
+    roadtwox = 1200                                 'x-position of cars two
+    roadthreex = 1500                               'x-position of cars three
+
+    'Game Settings
+    shiplives = 5                                   'How many lives the player has left (5 ships total at the start)
+    shipsaved = 0                                   'How many ships have been saved
+    speed = 3                                       'Default Level 1 Speed
+    timerone = 10                                   'Default Timer Level        The game has a modified timer speed
+    level = 1                                       'The First Level
+
+    'Game Time
+    timeloop = 0                                    'The difference between when the game was started and the time it is as you go through the loop
+    timeshow = 0                                    'The number that shows in the graphics box
+    timegap = 0                                     'The gap between the time a game was paused or halted by a notification and the timeloop
+    timespaused = 0                                 'This number, when in the play game loop, will fluctuate between 1 and 2. It is set to 0 so that "time" can be set at the start of a game
+
+end sub
+
+
+
+'========================================
+'    <<< Add Sprites Subroutines >>>
+'======================================== These two subroutines add the players sprite and the enemy sprites to the screen
+sub addship                                                        'Creates Players Sprite and puts it on screen
+    print #main, "addsprite ship shipimage blowup"
+    print #main, "spritexy ship "; shipx; " "; shipy
+end sub
+
+sub lanes                                                          'Creates enemy sprite and puts it on screen
+    'Lane1
+    print #main, "addsprite laneonecarone car1image"
+    print #main, "addsprite laneonecartwo truck1image"
+    print #main, "addsprite laneonecarthree bike1image"
+    print #main, "spritexy laneonecarone "; roadonex; " "; 100
+    print #main, "spritexy laneonecartwo "; roadtwox; " "; 100
+    print #main, "spritexy laneonecarthree "; roadthreex; " "; 100
+
+    'Lane2
+    print #main, "addsprite lanetwocarone bike2image"
+    print #main, "addsprite lanetwocartwo car2image"
+    print #main, "addsprite lanetwocarthree truck2image"
+    print #main, "spritexy lanetwocarone "; roadonex; " "; 150
+    print #main, "spritexy lanetwocartwo "; roadtwox; " "; 150
+    print #main, "spritexy lanetwocarthree "; roadthreex; " "; 150
+
+    'Lane3
+    print #main, "addsprite lanethreecarone truck3image"
+    print #main, "addsprite lanethreecartwo bike3image"
+    print #main, "addsprite lanethreecarthree car3image"
+    print #main, "spritexy lanethreecarone "; roadonex; " "; 250
+    print #main, "spritexy lanethreecartwo "; roadtwox; " "; 250
+    print #main, "spritexy lanethreecarthree "; roadthreex; " "; 250
+
+    'Lane4
+    print #main, "addsprite lanefourcarone bike2image"
+    print #main, "addsprite lanefourcartwo car2image"
+    print #main, "addsprite lanefourcarthree truck2image"
+    print #main, "spritexy lanefourcarone "; roadonex; " "; 300
+    print #main, "spritexy lanefourcartwo "; roadtwox; " "; 300
+    print #main, "spritexy lanefourcarthree "; roadthreex; " "; 300
+
+    'Lane5
+    print #main, "addsprite lanefivecarone car1image"
+    print #main, "addsprite lanefivecartwo truck1image"
+    print #main, "addsprite lanefivecarthree bike1image"
+    print #main, "spritexy lanefivecarone "; roadonex; " "; 350
+    print #main, "spritexy lanefivecartwo "; roadtwox; " "; 350
+    print #main, "spritexy lanefivecarthree "; roadthreex; " "; 350
+
+    'Lane6
+    print #main, "addsprite lanesixcarone truck2image"
+    print #main, "addsprite lanesixcartwo car2image"
+    print #main, "addsprite lanesixcarthree bike2image"
+    print #main, "spritexy lanesixcarone "; roadonex; " "; 450
+    print #main, "spritexy lanesixcartwo "; roadtwox; " "; 450
+    print #main, "spritexy lanesixcarthree "; roadthreex; " "; 450
+
+    'Lane7
+    print #main, "addsprite lanesevencarone bike3image"
+    print #main, "addsprite lanesevencartwo truck3image"
+    print #main, "addsprite lanesevencarthree car3image"
+    print #main, "spritexy lanesevencarone "; roadonex; " "; 500
+    print #main, "spritexy lanesevencartwo "; roadtwox; " "; 500
+    print #main, "spritexy lanesevencarthree "; roadthreex; " "; 500
+
+end sub
+
+
+'========================================
+'     <<< Rule Check Subroutine >>>
+'======================================== This subroutine makes sure the game is running alongside the rules
+sub rulecheck
+
+    if shiplives <= 0 then
+        #main.infobox "down ; fill black ; font arial 15"
+        #main.infobox "color yellow; backcolor black"
+        #main.infobox "place 15 20"
+        #main.infobox "\GAME OVER!"
+        print #main.playgame, "Play Game"
+        notice "You have destroyed too many ships. Your position as a Federation Starship Captain has been terminated by Captain James T. Kirk. GAMEOVER"
+        gameover = 1
+        call variables
+        print #main.playgame, "!setfocus" 'Sets focus to the Play Game Button
+    end if
+
+    if shipsaved = 5 and level = 1 then             'Save 5 Ships, increase level
+        speed = 5
+        level = 2
+        shiplives = shiplives + 1
+        call infoboxsub
+        notice "Well done. You have saved 5 ships! Captain James T. Kirk promotes you. For saving 5 ships you have gained a ship life. Welcome to Level 2!"
+        timespaused = 2
+    end if
+
+    if shipsaved = 10 and level = 2 then            'Save 10 Ships, increase level
+        speed = 7
+        level = 3
+        shiplives = shiplives + 1
+        call infoboxsub
+        notice "Well done. You have saved 10 ships! Captain James T. Kirk promotes you. For saving 5 more ships you have gained another ship life. Welcome to Level 3!"
+        timespaused = 2
+    end if
+
+    if shipsaved = 15 and level = 3 then            'Save 15 Ships, increase level
+        speed = 8
+        level = 4
+        shiplives = shiplives + 1
+        call infoboxsub
+        notice "Well done. You have saved 15 ships! Captain James T. Kirk promotes you. For saving 5 more ships you have gained another ship life. Now things get exciting! Welcome to Level 4!"
+        timespaused = 2
+    end if
+
+    if shipsaved = 20 and level = 4 then            'Save 20 Ships, increase level
+        speed = 9
+        level = 5
+        shiplives = shiplives + 1
+        call infoboxsub
+        notice "Well done. You have saved 20 ships! Captain James T. Kirk promotes you. For saving 5 more ships you have gained another ship life. You are on your last level! Welcome to Level 5! Good luck!"
+        timespaused = 2
+    end if
+
+    if shipsaved = 25 and level = 5 then            'Save 25 ships, win the game
+        'Infobox shows "YOU HAVE WON THE GAME" over two lines
+        #main.infobox "down ; fill black ; font arial 15"
+        #main.infobox "color yellow; backcolor black"
+        #main.infobox "place 5 17"
+        #main.infobox "\YOU HAVE WON"
+        #main.infobox "place 5 37"
+        #main.infobox "\THE GAME!"
+        notice "Well done! Captain James T. Kirk has now retired and makes you Captain of the Starship Enterprise! You have finished the game! It took you "; timeshow; " seconds to win! If you would like to play again then press Play Game."
+        'Reset Variables and Infobox
+        call variables
+        #main.infobox "down ; fill black ; font arial "
+        #main.infobox "color yellow; backcolor black"
+        gameover = 1   'Ends Play Game loop
+        print #main.playgame, "Play Game"
+        print #main.playgame, "!setfocus" 'Sets focus to the Play Game Button
+    end if
+
+    if shipy < 100 and shipsaved = 0 then
+        shipsaved = shipsaved + 1
+        shipx = 375
+        shipy = 550
+        #main.infobox "place 5 23"
+        #main.infobox "\Ships Saved = "; shipsaved
+        notice "Well done! You have saved a ship from disaster!"
+        print #main, "spritexy ship "; shipx; " "; shipy
+        print #main, "drawsprites"
+        timespaused = 2
+    end if
+
+    if shipy < 100 and shipsaved > 0 then
+        shipsaved = shipsaved + 1
+        shipx = 375
+        shipy = 550
+        #main.infobox "place 5 23"
+        #main.infobox "\Ships Saved = "; shipsaved
+        notice "Well done! You have saved another ship from disaster!"
+        print #main, "spritexy ship "; shipx; " "; shipy
+        print #main, "drawsprites"
+        timespaused = 2
+    end if
+
+end sub
+
+'========================================
+'     <<< Infobox Subroutine >>>
+'======================================== This subroutine updates the infobox with the latest figures
+sub infoboxsub
+    #main.infobox "down ; fill black ; font arial 8"
+    #main.infobox "color yellow; backcolor black"
+    #main.infobox "place 5 12"
+    #main.infobox "\Lives Left = "; shiplives
+    #main.infobox "place 5 23"
+    #main.infobox "\Ships Saved = "; shipsaved
+    #main.infobox "place 5 34"
+    #main.infobox "\Level = "; level
+    #main.infobox "place 5 45"
+    #main.infobox "\Game Time = "; timeshow
+
+end sub
+
+'========================================
+'     <<< Collision Subroutine >>>
+'======================================== This subroutine checks for collision and completes various tasks if there is collision
+sub collision
+    print #main, "spritecollides ship";
+    input #main, list$
+
+    if left$(list$, 4) = "lane" then       'If the first 4 letters of list$ = lane, then the sprites have collided
+        #main "cyclesprite ship 1 once"    'Change Sprite: Ship from Ship image to Blowup image
+        print #main, "drawsprites"
+        notice "You have crashed!"
+        shiplives = shiplives - 1
+        #main.infobox "place 5 12"
+        #main.infobox "\Lives Left = "; shiplives
+        #main "cyclesprite ship 1 once"    'Change Sprite: Ship from Blowup image to Ship image
+        shipx = 375
+        shipy = 550
+        print #main, "spritexy ship "; shipx; " ";shipy
+        print #main, "drawsprites"
+        timespaused = 2
+    end if
+end sub
+
+'========================================
+'     <<< Enemy Movement Subroutine >>>
+'======================================== This subroutine moves the enemy across the screen
+sub enemymovement
+    'Move sprites across the screen by 'speed' amount of pixels
+    roadonex = roadonex - speed
+    roadtwox = roadtwox - speed
+    roadthreex = roadthreex - speed
+
+    'Boundary for enemy sprites
+    while roadonex < -50
+        roadonex = 950
+    wend
+    while roadtwox < -50
+        roadtwox = 950
+    wend
+    while roadthreex < -50
+        roadthreex = 950
+    wend
+
+    'Print all enemy sprites
+    print #main, "spritexy laneonecarone "; roadonex; " "; 100
+    print #main, "spritexy laneonecartwo "; roadtwox; " "; 100
+    print #main, "spritexy laneonecarthree "; roadthreex; " "; 100
+    print #main, "spritexy lanetwocarone "; roadonex - 100; " "; 150
+    print #main, "spritexy lanetwocartwo "; roadtwox - 100; " "; 150
+    print #main, "spritexy lanetwocarthree "; roadthreex - 100; " "; 150
+    print #main, "spritexy lanethreecarone "; roadonex - 150; " "; 250
+    print #main, "spritexy lanethreecartwo "; roadtwox - 150; " "; 250
+    print #main, "spritexy lanethreecarthree "; roadthreex - 150; " "; 250
+    print #main, "spritexy lanefourcarone "; roadonex; " "; 300
+    print #main, "spritexy lanefourcartwo "; roadtwox; " "; 300
+    print #main, "spritexy lanefourcarthree "; roadthreex; " "; 300
+    print #main, "spritexy lanefivecarone "; roadonex - 100; " "; 350
+    print #main, "spritexy lanefivecartwo "; roadtwox - 100; " "; 350
+    print #main, "spritexy lanefivecarthree "; roadthreex - 100; " "; 350
+    print #main, "spritexy lanesixcarone "; roadonex; " "; 450
+    print #main, "spritexy lanesixcartwo "; roadtwox; " "; 450
+    print #main, "spritexy lanesixcarthree "; roadthreex - 150; " "; 450
+    print #main, "spritexy lanesevencarone "; roadonex - 150; " "; 500
+    print #main, "spritexy lanesevencartwo "; roadtwox - 150; " "; 500
+    print #main, "spritexy lanesevencarthree "; roadthreex; " "; 500
+
+    print #main, "drawsprites"
+end sub
+
+
+'========================================
+'     <<< Keypress Subroutine >>>         This subroutine checks for keypresses and moves the players sprite if there is a keypress
+'======================================== This subroutine also checks the boundarys, to keep the players sprite on screen
+sub keypress handle$, key$
+    'lowercase
+    if key$ = "w" then shipy = shipy - 50 'When w is pressed, move forward
+    if key$ = "a" then shipx = shipx - 50 'When a is pressed, move left
+    if key$ = "s" then shipy = shipy + 50 'When s is pressed, move backward
+    if key$ = "d" then shipx = shipx + 50 'When d is pressed, move right
+    if key$ = "p" then                    'When p is pressed, the game pauses
+        gameover = 1
+        timespaused = 2
+        print #main.playgame, "Resume"
+        print #main.playgame, "!setfocus" 'Sets focus to the Play Game/Resume Button
+    end if
+
+    'UPPERCASE
+    if key$ = "W" then shipy = shipy - 50 'When W is pressed, move forward
+    if key$ = "A" then shipx = shipx - 50 'When A is pressed, move left
+    if key$ = "S" then shipy = shipy + 50 'When S is pressed, move backward
+    if key$ = "D" then shipx = shipx + 50 'When D is pressed, move right
+    if key$ = "P" then                    'When P is pressed, the game pauses
+        gameover = 1
+        timespaused = 2
+        print #main.playgame, "Resume"
+        print #main.playgame, "!setfocus" 'Sets focus to the Play Game/Resume Button
+    end if
+
+    if key$ = "f" then
+        shipsaved = 20
+        speed = 1
+        level = 4
+    end if
+
+    if key$ = "e" then
+        speed = 1
+    end if
+
+
+    'Boundary
+    if shipx <= -25 then shipx = -25 'Left Hand Side Boundary
+    if shipx >= 775 then shipx = 775 'Right Hand Side Boundary
+    if shipy >= 600 then shipy = 600 'Bottom Boundary
+
+    print #main, "spritexy ship "; shipx; " "; shipy
+    print #main, "drawsprites"
+
+end sub
+
+'This subroutine is used when the program is out of the Play Game Subroutine, it is used so that the player cannot move their sprite when paused or out of game
+sub keypress2 handle$, key$
+    'Left blank, this means that the player cannot move their sprite when the game is paused/gameover
+end sub
+
+
+'========================================
+'        <<< Quit Subroutine >>>
+'======================================== This subroutine closes the #main window
+sub quit buttonhandle$
+    close #main
+    end
+end sub
+
